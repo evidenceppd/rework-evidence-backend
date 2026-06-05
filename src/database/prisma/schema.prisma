@@ -1,0 +1,302 @@
+// Prisma schema — models are added as domains are defined.
+// Connection limit is intentionally not hardcoded here;
+// it is set via DATABASE_URL in the environment (e.g. ?connection_limit=5&pool_timeout=10).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Home ────────────────────────────────────────────────────────────────────
+
+model HomePage {
+  id               String            @id @default(uuid())
+  bannerHome       Json
+  scenario         Json
+  bottlenecks      Json
+  performance      Json
+  howWeWork        Json
+  blogSectionTitle String
+  cardFooter       Json
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  testimonialsPage TestimonialsPage?
+  clientsPage      ClientsPage?
+  blogPage         BlogPage?
+  testimonials     Testimonial[]
+}
+
+// ─── Depoimentos ─────────────────────────────────────────────────────────────
+
+model TestimonialsPage {
+  id           String   @id @default(uuid())
+  title        String
+  subtitle     String
+  homePageId   String   @unique
+  homePage     HomePage @relation(fields: [homePageId], references: [id])
+  informative  Json
+  cardFooter   Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Testimonial {
+  id          String   @id @default(uuid())
+  videoLink   String
+  description String   @db.Text
+  name        String
+  position    String
+  clientSince String
+  homePageId  String
+  homePage    HomePage @relation(fields: [homePageId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([homePageId])
+}
+
+// ─── Como trabalhamos ────────────────────────────────────────────────────────
+
+model HowWeWorkPage {
+  id         String   @id @default(uuid())
+  aboutUs    Json
+  howWeWork  Json
+  oursValues Json
+  cardFooter Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ─── Serviços ────────────────────────────────────────────────────────────────
+
+model ServicesPage {
+  id                  String        @id @default(uuid())
+  title               String
+  subtitle            String
+  explanation         String        @db.Text
+  businessAccelerator Json
+  results             Json
+  cardFooter          Json
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  serviceCards ServiceCard[]
+}
+
+model ServiceCard {
+  id             String       @id @default(uuid())
+  cardIcon       String
+  title          String
+  description    String       @db.Text
+  topics         Json
+  servicesPageId String
+  servicesPage   ServicesPage @relation(fields: [servicesPageId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([servicesPageId])
+}
+
+// ─── Clientes ────────────────────────────────────────────────────────────────
+
+model ClientsPage {
+  id           String    @id @default(uuid())
+  title        String
+  subtitle     String
+  homePageId   String    @unique
+  homePage     HomePage  @relation(fields: [homePageId], references: [id])
+  cardsClients Json
+  cardFooter   Json
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  companies Company[]
+}
+
+model Company {
+  id                String      @id @default(uuid())
+  segment           String
+  clientImage       String
+  clientDescription String      @db.Text
+  clientSince       DateTime    @db.Date
+  clientsPageId     String
+  clientsPage       ClientsPage @relation(fields: [clientsPageId], references: [id], onDelete: Cascade)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([clientsPageId])
+  @@index([segment])
+}
+
+// ─── Blog ────────────────────────────────────────────────────────────────────
+
+model BlogPage {
+  id         String     @id @default(uuid())
+  title      String
+  subtitle   String
+  homePageId String     @unique
+  homePage   HomePage   @relation(fields: [homePageId], references: [id])
+  cardFooter Json
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  blogPosts BlogPost[]
+}
+
+model BlogPost {
+  id         String   @id @default(uuid())
+  slug       String   @unique
+  segment    String
+  title      String
+  subtitle   String
+  content    String   @db.Text
+  blogImage             String   @db.Text
+  blogBannerImage       String?  @db.Text
+  blogBannerMobileImage String?  @db.Text
+  views                 Int      @default(0)
+  blogPageId String
+  blogPage   BlogPage @relation(fields: [blogPageId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([slug])
+  @@index([segment])
+  @@index([blogPageId])
+  @@index([views])
+}
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+model SiteConfig {
+  id          String   @id @default(uuid())
+  description String   @db.Text
+  cnpj        String
+  socialMedia Json
+  contactUs   Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  MASTER
+  ADMIN
+  EDITOR
+}
+
+model AdminUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  nomeCompleto String    @default("")
+  passwordHash String
+  active       Boolean   @default(true)
+  role         Role      @default(EDITOR)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  mfaCodes MfaCode[]
+}
+
+model MfaCode {
+  id          String    @id @default(uuid())
+  codeHash    String
+  expiresAt   DateTime
+  used        Boolean   @default(false)
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([adminUserId])
+}
+
+model RevokedToken {
+  jti       String   @id
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+// ─── Diagnóstico / Formulários ────────────────────────────────────────────────
+
+model DiagnosticForm {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  description String?  @db.Text
+  sections    Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leads Lead[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+// ─── Diagnóstico / Leads ──────────────────────────────────────────────────────
+
+model Lead {
+  id              String    @id @default(uuid())
+
+  name            String
+  companyName     String
+  phone           String
+  email           String
+
+  city            String?
+  state           String?
+
+  segment         String?
+  operationSize   String?
+  marketTime      String?
+
+  mainChallenge   String?
+  growthChallenge String?   @db.Text
+
+  diagnosis       Json
+
+  formType        String    @default("unknown")
+  formId          String?
+  form            DiagnosticForm? @relation(fields: [formId], references: [id], onDelete: SetNull)
+  status          String    @default("new")
+  source          String    @default("site")
+  score           Int       @default(0)
+  leadTemperature String?
+
+  notes           String?   @db.Text
+  assignedTo      String?
+
+  lastContactAt   DateTime?
+  nextContactAt   DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([leadTemperature])
+  @@index([segment])
+  @@index([state])
+  @@index([city])
+  @@index([formType])
+  @@index([formId])
+  @@index([score])
+  @@index([createdAt])
+}
+
+model SiteContent {
+  id        String   @id @default(uuid())
+  pageId    String   @unique
+  route     String?
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pageId])
+}

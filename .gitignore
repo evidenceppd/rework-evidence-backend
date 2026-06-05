@@ -1,0 +1,17 @@
+# Environment — never commit the real .env
+.env
+
+# Dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime data generated locally by analytics storage
+data/
+
+# OS
+.DS_Store
+Thumbs.db
