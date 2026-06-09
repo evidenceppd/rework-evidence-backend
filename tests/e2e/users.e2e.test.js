@@ -183,6 +183,39 @@ describe('GET /api/users/:id', () => {
   });
 });
 
+describe('POST /api/users/:id/send-confirmation', () => {
+  it('returns 200 with masked email for MASTER', async () => {
+    vi.spyOn(usersService, 'sendEmailConfirmation').mockResolvedValue({ emailMasked: 'edi***@agency.com' });
+
+    const res = await fetch(`${baseUrl}/api/users/u-2/send-confirmation`, {
+      method: 'POST',
+      headers: authHeaders('MASTER'),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.emailMasked).toBe('edi***@agency.com');
+    expect(usersService.sendEmailConfirmation).toHaveBeenCalledWith('u-2', 'MASTER');
+  });
+});
+
+describe('POST /api/users/:id/confirm-email', () => {
+  it('returns 200 with activated user for MASTER', async () => {
+    vi.spyOn(usersService, 'confirmEmail').mockResolvedValue({ id: 'u-2', email: 'editor@agency.com', active: true });
+
+    const res = await fetch(`${baseUrl}/api/users/u-2/confirm-email`, {
+      method: 'POST',
+      headers: { ...authHeaders('MASTER'), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: '123456' }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.active).toBe(true);
+    expect(usersService.confirmEmail).toHaveBeenCalledWith('u-2', '123456', 'MASTER');
+  });
+});
+
 // ── PUT /api/users/:id ────────────────────────────────────────────────────────
 
 describe('PUT /api/users/:id', () => {

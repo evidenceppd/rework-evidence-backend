@@ -41,6 +41,31 @@ async function create(data) {
   });
 }
 
+async function createMfaCode(adminUserId, codeHash, expiresAt) {
+  await prisma.mfaCode.updateMany({
+    where: { adminUserId, used: false },
+    data: { used: true },
+  });
+  return prisma.mfaCode.create({
+    data: { adminUserId, codeHash, expiresAt },
+  });
+}
+
+async function findActiveMfaCode(adminUserId) {
+  return prisma.mfaCode.findFirst({
+    where: {
+      adminUserId,
+      used: false,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+async function markMfaCodeUsed(id) {
+  return prisma.mfaCode.update({ where: { id }, data: { used: true } });
+}
+
 async function update(id, data) {
   return prisma.adminUser.update({
     where: { id },
@@ -53,4 +78,14 @@ async function remove(id) {
   return prisma.adminUser.delete({ where: { id } });
 }
 
-module.exports = { findAll, findById, findByEmail, create, update, remove };
+module.exports = {
+  findAll,
+  findById,
+  findByEmail,
+  create,
+  createMfaCode,
+  findActiveMfaCode,
+  markMfaCodeUsed,
+  update,
+  remove,
+};

@@ -32,6 +32,8 @@ const router = Router();
  */
 router.get('/', requireAuth, requireRole('MASTER', 'ADMIN'), controller.list);
 router.get('/me', requireAuth, controller.me);
+router.post('/:id/send-confirmation', requireAuth, requireRole('MASTER', 'ADMIN'), controller.sendConfirmation);
+router.post('/:id/confirm-email', requireAuth, requireRole('MASTER', 'ADMIN'), controller.confirmEmail);
 
 /**
  * @openapi

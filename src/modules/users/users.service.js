@@ -1,12 +1,39 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const bcrypt = require('bcryptjs');
 const repo = require('./users.repository');
+const mailer = require('../../config/mailer');
 const { AppError } = require('../../utils/errors');
 const { sanitizeString } = require('../../utils/sanitize');
 
 // Roles that can be managed via the API (MASTER users are immutable)
 const MANAGEABLE_ROLES = new Set(['ADMIN', 'EDITOR']);
+
+function generateCode() {
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+function hashCode(code) {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+function maskEmail(email) {
+  const [localPart, domain] = String(email).split('@');
+  if (!localPart || !domain) return email;
+  const visible = localPart.slice(0, Math.min(3, localPart.length));
+  return `${visible}${'*'.repeat(Math.max(localPart.length - visible.length, 3))}@${domain}`;
+}
+
+async function sendConfirmationCode(user) {
+  const code = generateCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  await repo.createMfaCode(user.id, hashCode(code), expiresAt);
+  await mailer.sendMfaCode(user.email, code);
+
+  return { emailMasked: maskEmail(user.email) };
+}
 
 /**
  * Throws 403 if the actor is an EDITOR (no management rights at all).
@@ -68,7 +95,7 @@ async function getUser(id, actorRole) {
 async function createUser(data, actorRole) {
   assertNotEditor(actorRole);
 
-  const { email, nomeCompleto, password, role = 'EDITOR', active = true } = data;
+  const { email, nomeCompleto, password, role = 'EDITOR', active = false } = data;
   const safeEmail = typeof email === 'string' ? sanitizeString(email).trim() : email;
   const safeNomeCompleto = typeof nomeCompleto === 'string' ? sanitizeString(nomeCompleto).trim() : nomeCompleto;
 
@@ -85,7 +112,41 @@ async function createUser(data, actorRole) {
   if (existing) throw new AppError('Email already in use', 409);
 
   const passwordHash = await bcrypt.hash(password, 12);
-  return repo.create({ email: safeEmail, nomeCompleto: safeNomeCompleto, passwordHash, role, active });
+  const createdUser = await repo.create({ email: safeEmail, nomeCompleto: safeNomeCompleto, passwordHash, role, active });
+  const confirmation = await sendConfirmationCode(createdUser);
+
+  return { ...createdUser, emailPendente: !createdUser.active, emailMasked: confirmation.emailMasked };
+}
+
+async function sendEmailConfirmation(id, actorRole) {
+  assertNotEditor(actorRole);
+
+  const user = await repo.findById(id);
+  if (!user) throw new AppError('User not found', 404);
+
+  assertCanActOnTarget(actorRole, user.role);
+
+  return sendConfirmationCode(user);
+}
+
+async function confirmEmail(id, code, actorRole) {
+  assertNotEditor(actorRole);
+  if (!code) throw new AppError('code is required');
+
+  const user = await repo.findById(id);
+  if (!user) throw new AppError('User not found', 404);
+
+  assertCanActOnTarget(actorRole, user.role);
+
+  const activeCode = await repo.findActiveMfaCode(id);
+  if (!activeCode) throw new AppError('Confirmation code expired or not found', 401);
+
+  const codeMatches = hashCode(String(code)) === activeCode.codeHash;
+  await repo.markMfaCodeUsed(activeCode.id);
+
+  if (!codeMatches) throw new AppError('Invalid confirmation code', 401);
+
+  return repo.update(id, { active: true });
 }
 
 async function updateUser(id, data, actorRole) {
@@ -141,4 +202,13 @@ async function deleteUser(id, actorRole) {
   await repo.remove(id);
 }
 
-module.exports = { listUsers, getCurrentUser, getUser, createUser, updateUser, deleteUser };
+module.exports = {
+  listUsers,
+  getCurrentUser,
+  getUser,
+  createUser,
+  sendEmailConfirmation,
+  confirmEmail,
+  updateUser,
+  deleteUser,
+};

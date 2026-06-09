@@ -38,6 +38,24 @@ async function create(req, res, next) {
   }
 }
 
+async function sendConfirmation(req, res, next) {
+  try {
+    const result = await service.sendEmailConfirmation(req.params.id, req.adminRole);
+    res.json({ status: 'success', data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function confirmEmail(req, res, next) {
+  try {
+    const user = await service.confirmEmail(req.params.id, req.body?.code, req.adminRole);
+    res.json({ status: 'success', data: user });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function update(req, res, next) {
   try {
     const user = await service.updateUser(req.params.id, req.body, req.adminRole);
@@ -56,4 +74,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, me, getOne, create, update, remove };
+module.exports = { list, me, getOne, create, sendConfirmation, confirmEmail, update, remove };

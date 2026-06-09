@@ -3,6 +3,7 @@
 const usersService = require('../../src/modules/users/users.service');
 const repo = require('../../src/modules/users/users.repository');
 const bcrypt = require('bcryptjs');
+const mailer = require('../../src/config/mailer');
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -69,7 +70,9 @@ describe('usersService.createUser', () => {
   it('creates an EDITOR user when actor is MASTER', async () => {
     vi.spyOn(repo, 'findByEmail').mockResolvedValue(null);
     vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password');
-    const createSpy = vi.spyOn(repo, 'create').mockResolvedValue({ id: 'new-1' });
+    const createSpy = vi.spyOn(repo, 'create').mockResolvedValue({ id: 'new-1', email: 'new@test.com' });
+    const createMfaCodeSpy = vi.spyOn(repo, 'createMfaCode').mockResolvedValue({ id: 'mfa-1' });
+    const sendMfaCodeSpy = vi.spyOn(mailer, 'sendMfaCode').mockResolvedValue(undefined);
 
     await usersService.createUser(
       { email: 'new@test.com', nomeCompleto: 'New User', password: 'password123', role: 'EDITOR' },
@@ -79,12 +82,20 @@ describe('usersService.createUser', () => {
     expect(createSpy).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'new@test.com', role: 'EDITOR', passwordHash: 'hashed-password' }),
     );
+    expect(createMfaCodeSpy).toHaveBeenCalledWith(
+      'new-1',
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      expect.any(Date),
+    );
+    expect(sendMfaCodeSpy).toHaveBeenCalledWith('new@test.com', expect.stringMatching(/^\d{6}$/));
   });
 
   it('creates an ADMIN user when actor is MASTER', async () => {
     vi.spyOn(repo, 'findByEmail').mockResolvedValue(null);
     vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password');
-    const createSpy = vi.spyOn(repo, 'create').mockResolvedValue({ id: 'new-2' });
+    const createSpy = vi.spyOn(repo, 'create').mockResolvedValue({ id: 'new-2', email: 'admin@test.com' });
+    vi.spyOn(repo, 'createMfaCode').mockResolvedValue({ id: 'mfa-2' });
+    vi.spyOn(mailer, 'sendMfaCode').mockResolvedValue(undefined);
 
     await usersService.createUser(
       { email: 'admin@test.com', nomeCompleto: 'Admin User', password: 'password123', role: 'ADMIN' },
@@ -145,6 +156,53 @@ describe('usersService.createUser', () => {
         'MASTER',
       ),
     ).rejects.toMatchObject({ status: 409, message: 'Email already in use' });
+  });
+});
+
+describe('usersService.sendEmailConfirmation', () => {
+  it('sends a new confirmation code for an existing user', async () => {
+    vi.spyOn(repo, 'findById').mockResolvedValue({ id: 'u-1', email: 'user@test.com', role: 'EDITOR' });
+    const createMfaCodeSpy = vi.spyOn(repo, 'createMfaCode').mockResolvedValue({ id: 'mfa-1' });
+    const sendMfaCodeSpy = vi.spyOn(mailer, 'sendMfaCode').mockResolvedValue(undefined);
+
+    const result = await usersService.sendEmailConfirmation('u-1', 'MASTER');
+
+    expect(result.emailMasked).toBe('use***@test.com');
+    expect(createMfaCodeSpy).toHaveBeenCalledWith('u-1', expect.stringMatching(/^[a-f0-9]{64}$/), expect.any(Date));
+    expect(sendMfaCodeSpy).toHaveBeenCalledWith('user@test.com', expect.stringMatching(/^\d{6}$/));
+  });
+
+  it('throws 404 when user is not found', async () => {
+    vi.spyOn(repo, 'findById').mockResolvedValue(null);
+
+    await expect(usersService.sendEmailConfirmation('missing', 'MASTER')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('usersService.confirmEmail', () => {
+  it('activates the user when confirmation code matches', async () => {
+    const correctHash = require('node:crypto').createHash('sha256').update('123456').digest('hex');
+    vi.spyOn(repo, 'findById').mockResolvedValue({ id: 'u-1', email: 'user@test.com', role: 'EDITOR' });
+    vi.spyOn(repo, 'findActiveMfaCode').mockResolvedValue({ id: 'mfa-1', codeHash: correctHash });
+    const markUsedSpy = vi.spyOn(repo, 'markMfaCodeUsed').mockResolvedValue({ id: 'mfa-1' });
+    const updateSpy = vi.spyOn(repo, 'update').mockResolvedValue({ id: 'u-1', active: true });
+
+    const result = await usersService.confirmEmail('u-1', '123456', 'MASTER');
+
+    expect(markUsedSpy).toHaveBeenCalledWith('mfa-1');
+    expect(updateSpy).toHaveBeenCalledWith('u-1', { active: true });
+    expect(result.active).toBe(true);
+  });
+
+  it('throws 401 when confirmation code does not match', async () => {
+    vi.spyOn(repo, 'findById').mockResolvedValue({ id: 'u-1', email: 'user@test.com', role: 'EDITOR' });
+    vi.spyOn(repo, 'findActiveMfaCode').mockResolvedValue({ id: 'mfa-1', codeHash: 'wrong' });
+    vi.spyOn(repo, 'markMfaCodeUsed').mockResolvedValue({ id: 'mfa-1' });
+
+    await expect(usersService.confirmEmail('u-1', '123456', 'MASTER')).rejects.toMatchObject({
+      status: 401,
+      message: 'Invalid confirmation code',
+    });
   });
 });
 
