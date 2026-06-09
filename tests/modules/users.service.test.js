@@ -270,6 +270,26 @@ describe('usersService.updateUser', () => {
   });
 });
 
+describe('usersService.updateCurrentUser', () => {
+  it('allows a user to update their own password', async () => {
+    vi.spyOn(repo, 'findById').mockResolvedValue({ id: 'admin-1', role: 'EDITOR' });
+    vi.spyOn(bcrypt, 'hash').mockResolvedValue('self-password-hash');
+    const updateSpy = vi.spyOn(repo, 'update').mockResolvedValue({ id: 'admin-1' });
+
+    await usersService.updateCurrentUser('admin-1', { password: 'newpassword' });
+
+    expect(updateSpy).toHaveBeenCalledWith('admin-1', expect.objectContaining({ passwordHash: 'self-password-hash' }));
+  });
+
+  it('ignores role and active changes when updating the current user', async () => {
+    vi.spyOn(repo, 'findById').mockResolvedValue({ id: 'admin-1', role: 'EDITOR' });
+
+    await expect(
+      usersService.updateCurrentUser('admin-1', { role: 'MASTER', active: false }),
+    ).rejects.toMatchObject({ status: 400, message: 'No valid fields to update' });
+  });
+});
+
 // ─── deleteUser ───────────────────────────────────────────────────────────────
 
 describe('usersService.deleteUser', () => {

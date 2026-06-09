@@ -65,6 +65,15 @@ async function update(req, res, next) {
   }
 }
 
+async function updateMe(req, res, next) {
+  try {
+    const user = await service.updateCurrentUser(req.adminId, req.body);
+    res.json({ status: 'success', data: user });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function remove(req, res, next) {
   try {
     await service.deleteUser(req.params.id, req.adminRole);
@@ -74,4 +83,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, me, getOne, create, sendConfirmation, confirmEmail, update, remove };
+module.exports = { list, me, getOne, create, sendConfirmation, confirmEmail, update, updateMe, remove };

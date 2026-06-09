@@ -159,6 +159,7 @@ router.post('/', requireAuth, requireRole('MASTER', 'ADMIN'), controller.create)
  *       409:
  *         description: Email already in use
  */
+router.put('/me', requireAuth, controller.updateMe);
 router.put('/:id', requireAuth, requireRole('MASTER', 'ADMIN'), controller.update);
 
 /**

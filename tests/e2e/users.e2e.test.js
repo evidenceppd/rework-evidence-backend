@@ -255,6 +255,34 @@ describe('PUT /api/users/:id', () => {
   });
 });
 
+describe('PUT /api/users/me', () => {
+  it('updates the authenticated user profile for EDITOR', async () => {
+    const updated = { id: 'admin-1', email: 'editor@agency.com', nomeCompleto: 'Editor Atualizado', role: 'EDITOR', active: true };
+    const updateSpy = vi.spyOn(usersService, 'updateCurrentUser').mockResolvedValue(updated);
+
+    const res = await fetch(`${baseUrl}/api/users/me`, {
+      method: 'PUT',
+      headers: authHeaders('EDITOR'),
+      body: JSON.stringify({ nomeCompleto: 'Editor Atualizado', password: 'newpassword' }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(updateSpy).toHaveBeenCalledWith('admin-1', expect.objectContaining({ nomeCompleto: 'Editor Atualizado', password: 'newpassword' }));
+    expect(body.data).toEqual(updated);
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await fetch(`${baseUrl}/api/users/me`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Origin: 'http://trusted.local' },
+      body: JSON.stringify({ password: 'newpassword' }),
+    });
+
+    expect(res.status).toBe(401);
+  });
+});
+
 // ── DELETE /api/users/:id ─────────────────────────────────────────────────────
 
 describe('DELETE /api/users/:id', () => {

@@ -149,14 +149,7 @@ async function confirmEmail(id, code, actorRole) {
   return repo.update(id, { active: true });
 }
 
-async function updateUser(id, data, actorRole) {
-  assertNotEditor(actorRole);
-
-  const target = await repo.findById(id);
-  if (!target) throw new AppError('User not found', 404);
-
-  assertCanActOnTarget(actorRole, target.role);
-
+async function buildUserUpdateData(id, data, actorRole) {
   const { nomeCompleto, email, active, role, password } = data;
   const updateData = {};
 
@@ -179,6 +172,36 @@ async function updateUser(id, data, actorRole) {
     if (password.length < 8) throw new AppError('password must be at least 8 characters');
     updateData.passwordHash = await bcrypt.hash(password, 12);
   }
+
+  return updateData;
+}
+
+async function updateUser(id, data, actorRole) {
+  assertNotEditor(actorRole);
+
+  const target = await repo.findById(id);
+  if (!target) throw new AppError('User not found', 404);
+
+  assertCanActOnTarget(actorRole, target.role);
+
+  const updateData = await buildUserUpdateData(id, data, actorRole);
+
+  if (Object.keys(updateData).length === 0) {
+    throw new AppError('No valid fields to update');
+  }
+
+  return repo.update(id, updateData);
+}
+
+async function updateCurrentUser(id, data) {
+  const target = await repo.findById(id);
+  if (!target) throw new AppError('User not found', 404);
+
+  const updateData = await buildUserUpdateData(id, {
+    nomeCompleto: data.nomeCompleto,
+    email: data.email,
+    password: data.password,
+  });
 
   if (Object.keys(updateData).length === 0) {
     throw new AppError('No valid fields to update');
@@ -210,5 +233,6 @@ module.exports = {
   sendEmailConfirmation,
   confirmEmail,
   updateUser,
+  updateCurrentUser,
   deleteUser,
 };
