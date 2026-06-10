@@ -146,7 +146,7 @@ async function createForm(data) {
     description: safeData.description ?? null,
     sections: safeData.sections,
     isActive: safeData.isActive !== false,
-    displayOrder: Number.isInteger(safeData.displayOrder) ? safeData.displayOrder : 0,
+    displayOrder: Number.isFinite(Number(safeData.displayOrder)) ? Number(safeData.displayOrder) : 0,
   });
 }
 
