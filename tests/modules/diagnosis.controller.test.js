@@ -79,7 +79,7 @@ describe('diagnosis controller — listForms', () => {
 
 describe('diagnosis controller — getFormQuestions', () => {
   it('returns form slug, title, description and sections', async () => {
-    const form = { slug: 'commerce', title: 'Commerce', description: null, sections: [{ key: 's1' }] };
+    const form = { slug: 'commerce', title: 'Commerce', description: null, displayOrder: 2, sections: [{ key: 's1' }] };
     vi.spyOn(service, 'getFormBySlug').mockResolvedValue(form);
     const req = { params: { slug: 'commerce' } };
     const res = makeRes();
@@ -89,7 +89,7 @@ describe('diagnosis controller — getFormQuestions', () => {
     expect(service.getFormBySlug).toHaveBeenCalledWith('commerce');
     expect(res._body).toEqual({
       status: 'success',
-      data: { slug: 'commerce', title: 'Commerce', description: null, sections: [{ key: 's1' }] },
+      data: { slug: 'commerce', title: 'Commerce', description: null, displayOrder: 2, sections: [{ key: 's1' }] },
     });
   });
 

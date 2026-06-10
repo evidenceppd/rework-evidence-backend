@@ -146,6 +146,7 @@ async function createForm(data) {
     description: safeData.description ?? null,
     sections: safeData.sections,
     isActive: safeData.isActive !== false,
+    displayOrder: Number.isInteger(safeData.displayOrder) ? safeData.displayOrder : 0,
   });
 }
 
@@ -169,6 +170,7 @@ async function updateForm(slug, data) {
   if (safeData.title !== undefined) updateData.title = safeData.title;
   if (safeData.description !== undefined) updateData.description = safeData.description;
   if (safeData.isActive !== undefined) updateData.isActive = Boolean(safeData.isActive);
+  if (safeData.displayOrder !== undefined) updateData.displayOrder = Number(safeData.displayOrder) || 0;
   if (safeData.sections !== undefined) {
     if (!Array.isArray(safeData.sections)) throw new AppError('Field sections must be an array');
     updateData.sections = safeData.sections;

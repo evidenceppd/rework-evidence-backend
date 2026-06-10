@@ -20,7 +20,7 @@ async function getFormQuestions(req, res, next) {
     const form = await service.getFormBySlug(req.params.slug);
     res.json({
       status: 'success',
-      data: { slug: form.slug, title: form.title, description: form.description, sections: form.sections },
+      data: { slug: form.slug, title: form.title, description: form.description, displayOrder: form.displayOrder, sections: form.sections },
     });
   } catch (err) {
     next(err);

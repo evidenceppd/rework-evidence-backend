@@ -9,13 +9,14 @@ async function createForm(data) {
 async function findAll(activeOnly = true) {
   return prisma.diagnosticForm.findMany({
     where: activeOnly ? { isActive: true } : {},
-    orderBy: { createdAt: 'asc' },
+    orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
     select: {
       id: true,
       slug: true,
       title: true,
       description: true,
       isActive: true,
+      displayOrder: true,
       createdAt: true,
       updatedAt: true,
     },
