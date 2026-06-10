@@ -1,2 +1,1 @@
-ALTER TABLE "DiagnosticForm" ADD COLUMN "displayOrder" INTEGER NOT NULL DEFAULT 0;
-
+ALTER TABLE `DiagnosticForm` ADD COLUMN `displayOrder` INTEGER NOT NULL DEFAULT 0;
