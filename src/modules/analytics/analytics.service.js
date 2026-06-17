@@ -72,11 +72,31 @@ function detectDevice(userAgent = '') {
   return 'desktop';
 }
 
+function getClientIp(req = {}) {
+  return req.ip || req.socket?.remoteAddress || 'unknown-ip';
+}
+
+function hasRecentAccessFromIp(events, ip, now) {
+  return events.some((event) => {
+    if (event.ip !== ip) return false;
+
+    const createdAt = new Date(event.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return false;
+
+    return now.getTime() - createdAt.getTime() < DAY_MS;
+  });
+}
+
 async function track(payload = {}, req = {}) {
   const events = await readEvents();
   const page = normalizePage(payload.page || req.headers?.['x-page-path'] || req.originalUrl);
   const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId.slice(0, 120) : null;
   const now = new Date();
+  const ip = getClientIp(req);
+
+  if (hasRecentAccessFromIp(events, ip, now)) {
+    return { id: null, counted: false };
+  }
 
   const event = {
     id: `${now.getTime()}-${Math.random().toString(36).slice(2, 10)}`,
@@ -85,7 +105,7 @@ async function track(payload = {}, req = {}) {
     referrer: typeof payload.referrer === 'string' ? payload.referrer.slice(0, 500) : null,
     sessionId,
     device: detectDevice(req.headers?.['user-agent']),
-    ip: req.ip || req.socket?.remoteAddress || null,
+    ip,
     createdAt: now.toISOString(),
   };
 

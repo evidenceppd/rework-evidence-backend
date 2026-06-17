@@ -1,0 +1,80 @@
+'use strict';
+
+const storePath = require.resolve('../../src/modules/analytics/analytics.store');
+const servicePath = require.resolve('../../src/modules/analytics/analytics.service');
+const store = {
+  readEvents: vi.fn(),
+  writeEvents: vi.fn(),
+};
+
+delete require.cache[servicePath];
+require.cache[storePath] = {
+  id: storePath,
+  filename: storePath,
+  loaded: true,
+  exports: store,
+};
+
+const analyticsService = require('../../src/modules/analytics/analytics.service');
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.clearAllMocks();
+});
+
+describe('analyticsService.track', () => {
+  it('counts the first access from an IP', async () => {
+    const now = new Date('2026-06-17T12:00:00.000Z');
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    store.readEvents.mockResolvedValue([]);
+    store.writeEvents.mockResolvedValue(undefined);
+
+    const result = await analyticsService.track({ page: '/clientes' }, { ip: '203.0.113.10', headers: {} });
+
+    expect(result).toEqual({ id: expect.any(String), counted: true });
+    expect(store.writeEvents).toHaveBeenCalledWith([
+      expect.objectContaining({
+        page: '/clientes',
+        ip: '203.0.113.10',
+        createdAt: now.toISOString(),
+      }),
+    ]);
+  });
+
+  it('does not count the same IP again within 24 hours', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T12:00:00.000Z'));
+    store.readEvents.mockResolvedValue([
+      { id: 'existing', ip: '203.0.113.10', createdAt: '2026-06-16T12:00:01.000Z' },
+    ]);
+
+    const result = await analyticsService.track({ page: '/servicos' }, { ip: '203.0.113.10', headers: {} });
+
+    expect(result).toEqual({ id: null, counted: false });
+    expect(store.writeEvents).not.toHaveBeenCalled();
+  });
+
+  it('counts different IPs and the same IP after 24 hours', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T12:00:00.000Z'));
+    const events = [
+      { id: 'recent-other-ip', ip: '203.0.113.11', createdAt: '2026-06-17T11:59:00.000Z' },
+      { id: 'old-same-ip', ip: '203.0.113.10', createdAt: '2026-06-16T11:59:59.000Z' },
+    ];
+    const originalEvents = [...events];
+    store.readEvents.mockResolvedValue(events);
+    store.writeEvents.mockResolvedValue(undefined);
+
+    const result = await analyticsService.track({ page: '/blog' }, { ip: '203.0.113.10', headers: {} });
+
+    expect(result).toEqual({ id: expect.any(String), counted: true });
+    const savedEvents = store.writeEvents.mock.calls[0][0];
+    expect(savedEvents).toHaveLength(3);
+    expect(savedEvents.slice(0, 2)).toEqual(originalEvents);
+    expect(savedEvents[2]).toEqual(expect.objectContaining({
+      page: '/blog',
+      ip: '203.0.113.10',
+    }));
+  });
+});
