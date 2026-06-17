@@ -3,11 +3,12 @@
 const { Router } = require('express');
 const { requireAuth } = require('../../middlewares/jwt');
 const { requireRole } = require('../../middlewares/role');
+const { analyticsTrackLimiter } = require('../../middlewares/rate-limit');
 const controller = require('./analytics.controller');
 
 const router = Router();
 
-router.post('/track', controller.track);
+router.post('/track', analyticsTrackLimiter, controller.track);
 router.get('/stats', controller.stats);
 router.get('/views-month', controller.viewsMonth);
 router.get('/devices-month', controller.devicesMonth);

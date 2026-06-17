@@ -1,6 +1,11 @@
 'use strict';
 
-const { createFailureRateLimiter, createRequestRateLimiter } = require('../../src/middlewares/rate-limit');
+const {
+  analyticsTrackLimiter,
+  createFailureRateLimiter,
+  createRequestRateLimiter,
+  publicReadLimiter,
+} = require('../../src/middlewares/rate-limit');
 
 function createReq({ ip = '127.0.0.1', body = {}, headers = {} } = {}) {
   return {
@@ -241,5 +246,35 @@ describe('createRequestRateLimiter', () => {
       .toThrow('maxRequests');
     expect(() => createRequestRateLimiter({ windowMs: 1000, maxRequests: 5, blockDurationMs: 0 }))
       .toThrow('blockDurationMs');
+  });
+});
+
+describe('configured public request limiters', () => {
+  it('keeps analytics tracking blocks isolated from public content reads', () => {
+    const ip = '198.51.100.240';
+
+    for (let i = 0; i < 300; i += 1) {
+      analyticsTrackLimiter(createReq({ ip }), createRes(), vi.fn());
+    }
+
+    const blockedAnalyticsNext = vi.fn();
+    analyticsTrackLimiter(createReq({ ip }), createRes(), blockedAnalyticsNext);
+    expect(blockedAnalyticsNext.mock.calls[0][0].status).toBe(429);
+
+    const publicReadNext = vi.fn();
+    publicReadLimiter(createReq({ ip }), createRes(), publicReadNext);
+    expect(publicReadNext).toHaveBeenCalledWith();
+  });
+
+  it('still blocks excessive public content reads', () => {
+    const ip = '198.51.100.241';
+
+    for (let i = 0; i < 240; i += 1) {
+      publicReadLimiter(createReq({ ip }), createRes(), vi.fn());
+    }
+
+    const blockedPublicReadNext = vi.fn();
+    publicReadLimiter(createReq({ ip }), createRes(), blockedPublicReadNext);
+    expect(blockedPublicReadNext.mock.calls[0][0].status).toBe(429);
   });
 });

@@ -201,11 +201,17 @@ function createRequestRateLimiter(options) {
 }
 
 // Limiter pré-configurado para rotas públicas de leitura (GET sem autenticação).
-// 120 req/min por IP — tolera navegação normal; bloqueia F5 automatizado.
+// 240 req/min por IP — tolera páginas públicas com múltiplos blocos; bloqueia F5 automatizado.
 const publicReadLimiter = createRequestRateLimiter({
   windowMs: 60_000,
-  maxRequests: 120,
+  maxRequests: 240,
   blockDurationMs: 30_000,
 });
 
-module.exports = { createFailureRateLimiter, createRequestRateLimiter, publicReadLimiter };
+const analyticsTrackLimiter = createRequestRateLimiter({
+  windowMs: 60_000,
+  maxRequests: 300,
+  blockDurationMs: 30_000,
+});
+
+module.exports = { createFailureRateLimiter, createRequestRateLimiter, publicReadLimiter, analyticsTrackLimiter };

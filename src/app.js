@@ -67,7 +67,6 @@ app.use('/api/services', publicReadLimiter);
 app.use('/api/clients', publicReadLimiter);
 app.use('/api/blog', publicReadLimiter);
 app.use('/api/blogs', publicReadLimiter);
-app.use('/api/analytics', publicReadLimiter);
 app.use('/api/site-content', publicReadLimiter);
 
 // Public analytics tracking and read endpoints used by the admin dashboard.
