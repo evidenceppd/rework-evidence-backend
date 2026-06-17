@@ -72,8 +72,14 @@ function detectDevice(userAgent = '') {
   return 'desktop';
 }
 
+function firstForwardedIp(value) {
+  if (typeof value !== 'string') return null;
+  const [firstIp] = value.split(',').map((item) => item.trim()).filter(Boolean);
+  return firstIp || null;
+}
+
 function getClientIp(req = {}) {
-  return req.ip || req.socket?.remoteAddress || 'unknown-ip';
+  return firstForwardedIp(req.headers?.['x-forwarded-for']) || req.ip || req.socket?.remoteAddress || 'unknown-ip';
 }
 
 function hasRecentAccessFromIp(events, ip, now) {

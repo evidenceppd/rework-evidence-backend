@@ -77,4 +77,23 @@ describe('analyticsService.track', () => {
       ip: '203.0.113.10',
     }));
   });
+
+  it('uses the first forwarded IP before the proxy address', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T12:00:00.000Z'));
+    store.readEvents.mockResolvedValue([
+      { id: 'proxy-ip-event', ip: '10.0.0.5', createdAt: '2026-06-17T11:59:00.000Z' },
+    ]);
+    store.writeEvents.mockResolvedValue(undefined);
+
+    const result = await analyticsService.track(
+      { page: '/clientes' },
+      { ip: '10.0.0.5', headers: { 'x-forwarded-for': '198.51.100.21, 10.0.0.5' } },
+    );
+
+    expect(result).toEqual({ id: expect.any(String), counted: true });
+    expect(store.writeEvents.mock.calls[0][0][1]).toEqual(expect.objectContaining({
+      ip: '198.51.100.21',
+    }));
+  });
 });
