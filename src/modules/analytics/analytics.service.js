@@ -1,10 +1,11 @@
 'use strict';
 
 const { readEvents, writeEvents } = require('./analytics.store');
+const blogRepository = require('../blog/blog.repository');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const GENERIC_PAGE_TITLES = new Set(['site', 'p\u00e1gina p\u00fablica', 'pagina publica', '']);
+const GENERIC_PAGE_TITLES = new Set(['site', 'p\u00e1gina p\u00fablica', 'pagina publica', 'post do blog', '']);
 const PUBLIC_PAGE_TITLES = new Map([
   ['/', 'P\u00e1gina inicial'],
   ['/como-trabalhamos', 'Como trabalhamos'],
@@ -39,6 +40,32 @@ function bestPageTitle(page, currentTitle, nextTitle) {
   return titleFromPage(page) || current || next || null;
 }
 
+function blogPostIdFromPage(page) {
+  const pathname = normalizePage(page).split('?')[0] || '/';
+  const match = pathname.match(/^\/blog\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+async function titleFromBlogPost(page) {
+  const id = blogPostIdFromPage(page);
+  if (!id) return null;
+
+  try {
+    const post = await blogRepository.findPostById(id);
+    return cleanTitle(post?.title) || null;
+  } catch {
+    return null;
+  }
+}
+
+async function enrichTopPageTitles(pages) {
+  return Promise.all(pages.map(async (page) => {
+    if (page.title && !isGenericTitle(page.title)) return page;
+
+    const blogTitle = await titleFromBlogPost(page.page);
+    return blogTitle ? { ...page, title: blogTitle } : page;
+  }));
+}
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -181,9 +208,11 @@ async function topPages(limit = 10) {
     counts.set(event.page, current);
   }
 
-  return Array.from(counts.values())
+  const pages = Array.from(counts.values())
     .sort((a, b) => b.views - a.views)
     .slice(0, limit);
+
+  return enrichTopPageTitles(pages);
 }
 
 async function stats() {
