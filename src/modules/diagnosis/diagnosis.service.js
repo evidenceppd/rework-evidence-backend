@@ -13,6 +13,18 @@ const LEAD_REQUIRED = ['formType', 'name', 'companyName', 'phone', 'email', 'cit
 const VALID_STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'lost', 'client'];
 const STATE_REGEX = /^[A-Z]{2}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ALLOWED_EMAIL_DOMAINS = [
+  'gmail.com',
+  'hotmail.com',
+  'hotmail.com.br',
+  'outlook.com',
+  'outlook.com.br',
+  'yahoo.com',
+  'yahoo.com.br',
+  'uol.com.br',
+  'bol.com.br',
+  'terra.com.br',
+];
 
 function validateLeadFields(data) {
   for (const field of LEAD_REQUIRED) {
@@ -25,6 +37,10 @@ function validateLeadFields(data) {
     throw new AppError('Invalid email format');
   }
 
+  if (!isAllowedEmailDomain(data.email)) {
+    throw new AppError('Não foi possível fazer o envio: o e-mail utilizado não pode ser aceito.');
+  }
+
   if (!STATE_REGEX.test(data.state)) {
     throw new AppError('State must be a 2-letter UF code (e.g. SP)');
   }
@@ -32,6 +48,14 @@ function validateLeadFields(data) {
   if (typeof data.diagnosis !== 'object' || Array.isArray(data.diagnosis)) {
     throw new AppError('Field diagnosis must be an object');
   }
+}
+
+function isAllowedEmailDomain(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  const atIndex = raw.lastIndexOf('@');
+  if (atIndex === -1) return false;
+  const domain = raw.slice(atIndex + 1);
+  return ALLOWED_EMAIL_DOMAINS.includes(domain);
 }
 
 async function submitLead(data) {
