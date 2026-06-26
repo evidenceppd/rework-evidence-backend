@@ -45,6 +45,18 @@ function validateLeadFields(data) {
     throw new AppError('State must be a 2-letter UF code (e.g. SP)');
   }
 
+  if (isRepeatedPhone(data.phone)) {
+    throw new AppError('NÃ£o foi possÃ­vel fazer o envio: nÃºmero de telefone invÃ¡lido.');
+  }
+
+  if (containsForbiddenUrl(data.phone) || containsForbiddenUrl(data.email)) {
+    throw new AppError('NÃ£o foi possÃ­vel fazer o envio: links nÃ£o sÃ£o permitidos nos campos de texto.');
+  }
+
+  if (containsForbiddenLink(data.name) || containsForbiddenLink(data.companyName) || containsForbiddenLink(data.city) || containsForbiddenLink(data.state) || containsForbiddenLink(data.segment) || containsForbiddenLink(data.operationSize) || containsForbiddenLink(data.marketTime) || containsForbiddenLink(data.mainChallenge) || containsForbiddenLink(data.growthChallenge) || containsForbiddenLinkInObject(data.diagnosis)) {
+    throw new AppError('NÃ£o foi possÃ­vel fazer o envio: links nÃ£o sÃ£o permitidos nos campos de texto.');
+  }
+
   if (typeof data.diagnosis !== 'object' || Array.isArray(data.diagnosis)) {
     throw new AppError('Field diagnosis must be an object');
   }
@@ -56,6 +68,30 @@ function isAllowedEmailDomain(value) {
   if (atIndex === -1) return false;
   const domain = raw.slice(atIndex + 1);
   return ALLOWED_EMAIL_DOMAINS.includes(domain);
+}
+
+function containsForbiddenUrl(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return /(https?:\/\/|www\.)\S+/.test(normalized);
+}
+
+function containsForbiddenLink(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return containsForbiddenUrl(normalized) || /\b[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.[a-z]{2,}(?:\/\S*)?/i.test(normalized);
+}
+
+function containsForbiddenLinkInObject(value) {
+  if (typeof value === 'string') return containsForbiddenLink(value);
+  if (value == null || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some(containsForbiddenLinkInObject);
+  return Object.values(value).some((item) => containsForbiddenLinkInObject(item));
+}
+
+function isRepeatedPhone(value) {
+  const raw = String(value || '').replace(/\D/g, '');
+  if (raw.length < 10) return false;
+  const first = raw[0];
+  return raw.split('').every((digit) => digit === first);
 }
 
 async function submitLead(data) {

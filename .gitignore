@@ -4,6 +4,12 @@
 # Dependencies
 node_modules/
 
+# Uploads de imagens e arquivos
+uploads/*
+
+# Build do projeto
+dist/
+
 # Logs
 logs/
 *.log
