@@ -329,6 +329,23 @@ describe('diagnosis service — updateLeadStatus', () => {
 
 // ─── createForm ──────────────────────────────────────────────────────────────
 
+describe('diagnosis service — deleteLead', () => {
+  it('deleta o lead quando encontrado', async () => {
+    vi.spyOn(repo, 'findById').mockResolvedValue({ id: 'lead-1' });
+    const removeSpy = vi.spyOn(repo, 'remove').mockResolvedValue({ id: 'lead-1' });
+
+    await service.deleteLead('lead-1');
+
+    expect(removeSpy).toHaveBeenCalledWith('lead-1');
+  });
+
+  it('lança 404 quando lead não existe', async () => {
+    vi.spyOn(repo, 'findById').mockResolvedValue(null);
+
+    await expect(service.deleteLead('missing')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
 describe('diagnosis service — createForm', () => {
   const VALID_FORM = { slug: 'new-form', title: 'New Form', sections: [{ key: 'sec1', title: 'Section 1', questions: [] }] };
 

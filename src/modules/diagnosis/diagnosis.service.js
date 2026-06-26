@@ -172,6 +172,12 @@ async function updateLeadStatus(id, status) {
   return repo.updateStatus(id, status);
 }
 
+async function deleteLead(id) {
+  const lead = await repo.findById(id);
+  if (!lead) throw new AppError('Lead not found', 404);
+  return repo.remove(id);
+}
+
 // ─── Form CRUD ────────────────────────────────────────────────────────────────
 
 const FORM_REQUIRED = ['slug', 'title', 'sections'];
@@ -254,6 +260,7 @@ module.exports = {
   listLeads,
   getLeadById,
   updateLeadStatus,
+  deleteLead,
   createForm,
   listForms,
   getFormBySlug,

@@ -311,6 +311,60 @@ describe('GET /api/diagnosis/leads/:id', () => {
 
 // ── Admin: update lead status ─────────────────────────────────────────────────
 
+describe('DELETE /api/diagnosis/leads/:id', () => {
+  it('returns 204 on successful delete for MASTER', async () => {
+    vi.spyOn(diagnosisService, 'deleteLead').mockResolvedValue(undefined);
+
+    const res = await fetch(`${baseUrl}/api/diagnosis/leads/lead-1`, {
+      method: 'DELETE',
+      headers: authHeaders('MASTER'),
+    });
+
+    expect(res.status).toBe(204);
+    expect(diagnosisService.deleteLead).toHaveBeenCalledWith('lead-1');
+  });
+
+  it('returns 204 on successful delete for ADMIN', async () => {
+    vi.spyOn(diagnosisService, 'deleteLead').mockResolvedValue(undefined);
+
+    const res = await fetch(`${baseUrl}/api/diagnosis/leads/lead-1`, {
+      method: 'DELETE',
+      headers: authHeaders('ADMIN'),
+    });
+
+    expect(res.status).toBe(204);
+  });
+
+  it('returns 403 for EDITOR role', async () => {
+    const res = await fetch(`${baseUrl}/api/diagnosis/leads/lead-1`, {
+      method: 'DELETE',
+      headers: authHeaders('EDITOR'),
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await fetch(`${baseUrl}/api/diagnosis/leads/lead-1`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Origin: 'http://trusted.local' },
+    });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 when lead does not exist', async () => {
+    vi.spyOn(diagnosisService, 'deleteLead').mockRejectedValue(new AppError('Lead not found', 404));
+
+    const res = await fetch(`${baseUrl}/api/diagnosis/leads/ghost`, {
+      method: 'DELETE',
+      headers: authHeaders('MASTER'),
+    });
+
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('PATCH /api/diagnosis/leads/:id/status', () => {
   it('returns 200 with updated lead status for MASTER', async () => {
     const updated = { id: 'lead-1', status: 'CONTACTED', leadTemperature: 'HOT' };

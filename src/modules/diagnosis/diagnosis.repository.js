@@ -48,4 +48,8 @@ async function updateStatus(id, status) {
   return prisma.lead.update({ where: { id }, data: { status } });
 }
 
-module.exports = { create, findAll, findById, updateStatus };
+async function remove(id) {
+  return prisma.lead.delete({ where: { id } });
+}
+
+module.exports = { create, findAll, findById, updateStatus, remove };

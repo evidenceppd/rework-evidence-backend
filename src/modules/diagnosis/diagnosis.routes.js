@@ -293,6 +293,31 @@ router.get('/leads/:id', requireAuth, requireRole('MASTER', 'ADMIN'), controller
 
 /**
  * @openapi
+ * /api/diagnosis/leads/{id}:
+ *   delete:
+ *     tags: [Diagnosis]
+ *     summary: Remove um lead de diagnóstico (admin)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       '204':
+ *         description: Lead removido
+ *       '401':
+ *         description: Token ausente ou inválido
+ *       '403':
+ *         description: Permissão insuficiente
+ *       '404':
+ *         description: Lead não encontrado
+ */
+router.delete('/leads/:id', requireAuth, requireRole('MASTER', 'ADMIN'), controller.deleteLead);
+
+/**
+ * @openapi
  * /api/diagnosis/leads/{id}/status:
  *   patch:
  *     tags: [Diagnosis]

@@ -99,6 +99,15 @@ async function updateLeadStatus(req, res, next) {
   }
 }
 
+async function deleteLead(req, res, next) {
+  try {
+    await service.deleteLead(req.params.id);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listForms,
   getFormQuestions,
@@ -109,4 +118,5 @@ module.exports = {
   listLeads,
   getLeadById,
   updateLeadStatus,
+  deleteLead,
 };
